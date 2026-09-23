@@ -1396,10 +1396,21 @@
         util$2(),
         rules(settings)
     ];
+//  API сървър
+    const serveFrontend = require('../serve-frontend');
+    const apiHandler = requestHandler(plugins, services);
 
-    const server = http__default['default'].createServer(requestHandler(plugins, services));
+    const server = http__default['default'].createServer((req, res) => {
+        const apiPath = /^\/(users|data|jsonstore|admin|util|favicon)(\/|\?|$)/.test(req.url);
 
-    const port = 3030;
+        if (process.env.PORT && req.method === 'GET' && !apiPath) {
+            return serveFrontend(req, res);
+        }
+
+        return apiHandler(req, res);
+    });
+
+    const port = Number(process.env.PORT) || 3030;
     server.listen(port);
     console.log(`Server started on port ${port}. You can make requests to http://localhost:${port}/`);
     console.log(`Admin panel located at http://localhost:${port}/admin`);
