@@ -1,0 +1,49 @@
+name: Library Catalog CI/CD
+
+on:
+    push:
+        branches: [main]
+
+    pull_request:
+        branches: [main]
+    
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                node-version: [18.x, 20.x, 22.x]    
+        
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                node-version: ${{ matrix.node-version }} 
+                
+            - name: Install dependencies
+              run: npm ci
+              
+            - name: Install Playwright Chromium
+              run: npx playwright install --with-deps chromium 
+              
+            - name: Start application and API
+              run: |
+                  npm run server &
+                  npm start &
+
+            - name: Wait for servers
+              run: |
+                for i in {1..30}; do
+                    if (echo > /dev/tcp/localhost/3030) 2>/dev/null && (echo > /dev/tcp/localhost/3000) 2>/dev/null; then
+                        exit 0
+                    fi
+                    sleep 1
+                done
+                echo "Servers did not start in time"
+                exit 1
+                
+            - name: Run Playwright tests
+              run: npm test -- --workers=1    
